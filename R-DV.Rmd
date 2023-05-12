@@ -1,0 +1,337 @@
+---
+title: "R-dataVisualization project"
+output: html_document
+date: "2023-04-24"
+---
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(magrittr)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(textdata)
+library(ggplot2)
+library(plotly)
+
+```
+
+```{r dataset}
+setwd("D:/")
+UOF_data <- read.csv("UOF_P_2016_prepped.csv")
+
+attach(UOF_data)
+
+```
+No. of Officers getting injured
+```{r}
+OFFICERINJURY<-table(OFFICER_INJURY)
+OFFICERINJURY 
+barplot(OFFICERINJURY,main="OFFICER INJURY")
+
+```
+
+
+
+From the bar plot, we can see there is not significant injuries of officers
+
+## Plotting histogram
+
+Frequency of officers staying years on force 
+```{r histogram}
+#Frequency of officers staying years on force 
+Officer_years_on_force<-as.numeric(OFFICER_YEARS_ON_FORCE)
+officer_years_on_force<-na.omit(Officer_years_on_force)
+hist(Officer_years_on_force,main="Officer years on force",xlab="No. of years",ylab="No. of officers")
+```
+
+As we can see 300-600 officers stays for less than ten years and only 100 officers are likely to stay more than 10 years
+Let's see the reason from the data, if it is the injuries and other factors?
+
+## Plotting barplot to compare officers and subjects injury 
+
+Number of Officer getting injured
+
+```{r }
+O_Yes_values <- UOF_data$OFFICER_INJURY == "Yes"
+O_No_values <- UOF_data$OFFICER_INJURY=="No"
+```
+Sum the number of injuries of officers
+```{r}
+O_INJURY_OCCURED <- sum(O_Yes_values)
+O_INJURY_NOT_OCCURED<-sum(O_No_values)
+print(O_INJURY_OCCURED)
+print(O_INJURY_NOT_OCCURED)
+```
+Sum the number of injuries of subjects
+```{r}
+S_Yes_values <- UOF_data$SUBJECT_INJURY == "Yes"
+S_No_values <- UOF_data$SUBJECT_INJURY=="No"
+S_INJURY_OCCURED <- sum(S_Yes_values)
+S_INJURY_NOT_OCCURED<-sum(S_No_values)
+print(S_INJURY_OCCURED)
+print(S_INJURY_NOT_OCCURED)
+
+```
+Both simple and interactive
+Simple Bar plot
+```{r}
+INJURIES_COUNT <- c(O_INJURY_OCCURED, S_INJURY_OCCURED)
+# define the labels for the x-axis
+labels <- c("OFFICERS", "SUBJECTS")
+# define the colors for the bars
+colors <- c("lightblue", "salmon")
+# create the bar plot
+barplot(INJURIES_COUNT, names.arg = labels, xlab = "Injuries Occurred", ylab = "Count", col = colors, border = "black", main = "Total Injury Count")
+
+
+```
+Interactive Bar plot
+```{r}
+library(tidyr)
+library(ggplot2)
+library(plotly)
+df_injuries <- data.frame(O_INJURY_OCCURED,S_INJURY_OCCURED)
+# convert the data to a long format using tidyr
+df_long <- gather(df_injuries, key = "Injury_Count", value = "Count")
+# create the bar plot using ggplot2
+x<-ggplot(df_long, aes(x = Injury_Count, y = Count, fill = Injury_Count)) +
+  geom_bar(stat = "identity", width = 0.5, color = "black") +
+  labs(title = "Tota Injury Count",
+       x = "Injuries Occurred",
+       y = "Count") +
+  scale_fill_manual(values = c("lightblue", "salmon")) +
+  theme_minimal()
+ggplotly(x)
+```
+
+we can see that subjects were injured 3 times more than the officers
+But more than 250 officers got injured in a year which makes this job a bit risky, but the subject part needs more attention, we will see further into this
+
+Analyzing the variety of reasons for arrest in subjects with respect to division using barplot
+
+```{r}
+df_divsion <- data.frame(S_description=c(SUBJECT_DESCRIPTION),Div=c(DIVISION))
+# remove rows with missing subject descriptions
+df_division <- na.omit(df_divsion)
+# use aggregate function to calculate the count of each subject_description in each division
+Total_num <- aggregate(S_description ~ Div, data = df_divsion, FUN = function(x) length(x))
+Total_num
+
+p <- ggplot(Total_num, aes(x = reorder(Div, S_description), y = S_description, fill = S_description)) + 
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(x = "Division", y = "Count", title = "Subjects Count by Division")
+ggplotly(p)
+```
+
+Most of the criminals types are found in CENTRAL and least in NORTHWEST
+
+## Effect of race on injuries of officers and subjects using Scatter Plot
+For officers
+
+```{r}
+df_O <- data.frame(officer_race = OFFICER_RACE, injury = OFFICER_INJURY)
+
+# Filter the data frame to keep only the "Yes" values in the injury column
+df_yes_O <- subset(df_O, injury == "Yes")
+
+# Count the number of "Yes" values for each officer race
+count_yes_O <- as.data.frame(table(df_yes_O$officer_race))
+# Rename the columns
+names(count_yes_O) <- c("officer_race", "count")
+# Plot the results using ggplot2
+J<-ggplot(count_yes_O, aes(x = officer_race, y = count)) + 
+  geom_point(stat = "identity", fill = "steelblue") + 
+  labs(title = "Number of Injuries by Officer Race")
+ggplotly(J)
+
+```
+
+Most of the officers getting injured are white, because of the work force comprised of mostly American/white
+
+For subjects
+```{r}
+ df_S <- data.frame(subject_race = SUBJECT_RACE, injury = SUBJECT_INJURY)
+# Filter the data frame to keep only the "Yes" values in the injury column
+df_yes_S <- subset(df_S, injury == "Yes")
+# Count the number of "Yes" values for each officer race
+count_yes_S <- as.data.frame(table(df_yes_S$subject_race))
+# Rename the columns
+names(count_yes_S) <- c("subject_race", "count")
+# Plot the results using ggplot2
+m<-ggplot(count_yes_S, aes(x = subject_race, y = count)) + 
+  geom_point(stat = "identity", fill = "steelblue") + 
+  labs(title = "Number of Injuries by Subject Race")
+ggplotly(m)
+
+```
+Here we can see that blacks are being injured the most, either it could be racism towards them or maybe they are armed/argue/more into crime
+```{r,message=FALSE,warning=FALSE}
+library(lubridate)
+library(xts)
+
+```
+
+## Time series plot of how many incidents occurred over the period of time
+
+```{r,message=FALSE,warning=FALSE}
+detach("package:tidyr", unload = FALSE)
+library(dplyr)
+library(lubridate)
+```
+
+```{r}
+library(xts)
+library(dplyr)
+options(conflict.prefer="dplyr")
+df_grouped <- UOF_data %>%group_by(INCIDENT_REASON) %>%summarize(count = n())
+attach(UOF_data)
+# assigning value 1 to yes values
+UOF_data$Incident_occurred<-1
+df_incident<-data.frame(date=UOF_data$INCIDENT_DATE,Incident=UOF_data$Incident_occurred)
+
+
+df_summarized <- df_incident %>% 
+  group_by(date) %>% 
+  summarize(total_incidents = sum(Incident))
+
+# Print the summarized dataframe
+print(df_summarized)
+```
+
+```{r}
+library(lubridate)
+tsdates<-df_summarized$date <- as.Date(df_summarized$date, format = "%m/%d/%Y", tryFormats = c("%m/%d/%Y", "%m/%d/%y"))
+
+
+df_summarized_NA<-na.omit(df_summarized)
+
+Incidents<-df_summarized_NA$total_incidents
+
+tsdates<-na.omit(tsdates)
+ts_incident<-xts(data.frame(Incidents=Incidents),tsdates)
+autoplot(ts_incident,facet=NULL)+labs(title="No of Incidents Over the Years",x = "Years", y = "Incidents")+theme_bw()
+
+```
+
+Smoothing the peaks' noices and echoes
+```{r}
+#install.packages("forecast")
+library(forecast)
+library(plotly)
+library(tidyr)
+## Weekly Moving Average smoothing
+ma7 <- forecast::ma(Incidents, 7)
+## Makes a 2-variable time series
+ts_incident_1 <- xts(data.frame(Incidents=Incidents,ma7=ma7),df_summarized_NA$date)
+## and plots them
+Q<-autoplot(ts_incident_1,facet=NULL)+
+  geom_line(size=1.1) +
+  scale_color_manual( values = c("darkgrey","red"))+theme_bw() +
+  labs(title="No of Incidents Over the Years",x = "Years", y = "Incidents")
+ggplotly(Q)
+
+```
+We can see the peaks are sharp during February-March 2016 and October 2016, this could make the analysis easier and can help police to stay alert during this period specifically
+
+
+## Create a leaflet map to show the which subject offense taking place in which areas to make sure to counter them timely
+
+loading relevant libraries
+```{r}
+#install.packages("leaflet")
+library(leaflet)
+library(leaflet)
+#install.packages("leaflet.extras")
+library(leaflet.extras)
+```
+
+```{r}
+SUBJECT_OFFENSE<-UOF_data$SUBJECT_OFFENSE
+LATITUDE = as.numeric(UOF_data$LOCATION_LATITUDE) 
+LONGITUDE = as.numeric(UOF_data$LOCATION_LONGITUDE)
+df_leaflet <- data.frame(LATITUDE,LONGITUDE,popup = SUBJECT_OFFENSE)
+df_leaflet<-na.omit(df_leaflet)
+
+leaflet(df_leaflet) %>% 
+  addTiles() %>% 
+  addCircleMarkers(lng = ~LONGITUDE, lat = ~LATITUDE, popup = ~popup) %>% addProviderTiles("CartoDB.Positron") %>%
+  addFullscreenControl() %>%
+  addLegend(title = "Subject Offense", 
+            colors = c("#a50026", "#d73027", "#f46d43", "#fdae61", "#fee08b", "#ffffbf", "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850", "#006837"), 
+            labels = c("Aggravated Assault", "Burglary", "Disorderly Conduct", "Drug Offenses", "DUI", "Fraud", "Robbery", "Sexual Offenses", "Simple Assault", "Theft", "Weapon Offenses"),
+            opacity = 1, position = "bottomright") %>%
+  addLayersControl(baseGroups = c("CartoDB.Positron", "CartoDB.DarkMatter"), 
+                   overlayGroups = NULL, 
+                   options = layersControlOptions(collapsed = TRUE)) %>%
+  addScaleBar(position = "bottomleft")
+```
+## Plotting correlation analysis between variables such as latitude and longitude to understand the spatial distribution of crime incidents
+
+```{r}
+df_grouped <- UOF_data %>%
+  group_by(INCIDENT_REASON) %>%
+  summarize(count = n())
+df_reason_count <- df_grouped %>%
+  select(INCIDENT_REASON, count)
+df_reason_count <- df_grouped %>%
+  select(INCIDENT_REASON, count)
+# Merge the reason count with latitude and longitude columns from original data frame
+df_location_reason_count <- UOF_data %>%
+  select(LOCATION_LATITUDE, LOCATION_LONGITUDE, INCIDENT_REASON) %>%
+  left_join(df_reason_count, by = "INCIDENT_REASON")
+
+# the new data frame
+head(df_location_reason_count)
+# Remove rows with missing data
+df_location_reason_count_N <- na.omit(df_location_reason_count)
+df_Corr<-data.frame(lat=as.numeric(df_location_reason_count_N$LOCATION_LATITUDE), long=as.numeric(df_location_reason_count_N$LOCATION_LONGITUDE), COUNT=df_location_reason_count_N$count)
+df_Corr_N<-na.omit(df_Corr)
+vars <- c("lat", "long", "COUNT")
+# create a correlation matrix
+cor_matrix <- cor(df_Corr_N[, vars])
+# print the correlation matrix
+print(cor_matrix)
+```
+The correlation coefficient for latitude and longitude is -0.01, which suggests that there is little to no correlation between the two variables. The correlation coefficient for the count of incident reasons and latitude is -0.045, which suggests a weak negative correlation. Similarly, the correlation coefficient for the count of incident reasons and longitude is -0.015, which suggests little to no correlation.
+
+
+```{r}
+library(reshape2)
+
+# Reshape the correlation matrix into a data frame
+cor_matrix_df <- melt(cor_matrix)
+
+# Create a heatmap using ggplot2
+ggplot(cor_matrix_df, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +labs(title="Correlation of Incident reason with LATITUDE/LONGITUDE")+
+  scale_fill_gradient2(low="blue", mid="white", high="red", 
+                       midpoint=0, limit=c(-1,1), space="Lab", 
+                       name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, 
+                                   size = 10, hjust = 1),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.justification = c(1,0),
+        legend.position = c(0.85, 0.15))
+```
+
+Overall, this correlation matrix suggests that there is no strong correlation between the variables
+which means that the spatial distribution of crime incidents may not be easily explained by the variables of latitude and longitude.
+
+
+However we analyzed,
+1- how likely officers are to stay on job
+2- the reasons, whether its the job type or racism or injuries
+3- we saw the division where most of the injuries take place, this can help to target the division
+4- Also if subjects can be treated any better since mostly black are being injured
+5- Which month of the year needs the police to stay alert more than
+6- leaflet map could help us to target the places and type of offenses 
+7- Correlation of incident count with latitude and longitude(showed weak correlation)
+
+
